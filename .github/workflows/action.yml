@@ -38,6 +38,8 @@ jobs:
           git config --global user.name wuyuw
           git add archive today.md
           git commit -m "每日安全资讯（`date +'%Y-%m-%d'`）"
+          git pull --rebase origin main
+          git push -f origin main
 
       - name: Push changes
         uses: ad-m/github-push-action@master
