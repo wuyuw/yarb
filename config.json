@@ -49,7 +49,7 @@
             "key": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
         },
         "wecom": {
-            "enabled": false,
+            "enabled": true,
             "secrets": "WECOM_KEY",
             "key": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
         },
