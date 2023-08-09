@@ -185,7 +185,7 @@ class qqBot:
                         console.print(f'[-] qqBot 发送失败 {id}', style='bold red')
                         print(e)
 
-    async def start_server(self, qq_id, qq_passwd, timeout=60):
+    def start_server(self, qq_id, qq_passwd, timeout=60):
         config_path = self.cqhttp_path.joinpath('config.yml')
         with open(config_path, 'r') as f:
             data = yaml.load(f, Loader=yaml.FullLoader)
@@ -252,7 +252,6 @@ class mailBot:
                 text += f'<li><a href="{link}">{title}</a></li>'
             text += '</ul>'
         text += '<br><br><b>如不需要，可直接回复本邮件退订。</b></body></html>'
-        print(text)
         return text
 
     def send(self, text: str):
@@ -286,9 +285,9 @@ class telegramBot:
         self.chat_id = chat_id
         self.bot = telegram.Bot(token=key, request=proxy)
 
-    async def test_connect(self):
+    def test_connect(self):
         try:
-            await self.bot.get_me()
+            self.bot.get_me()
             return True
         except Exception as e:
             console.print('[-] telegramBot 连接失败', style='bold red')
@@ -305,7 +304,7 @@ class telegramBot:
             text_list.append(text.strip())
         return text_list
 
-    async def send(self, text_list: list):
+    def send(self, text_list: list):
         limiter = Limiter(RequestRate(20, Duration.MINUTE))     # 频率限制，20条/分钟
         for text in text_list:
             with limiter.ratelimit('identity', delay=True):
@@ -313,7 +312,7 @@ class telegramBot:
 
                 for id in self.chat_id:
                     try:
-                        await self.bot.send_message(
+                        self.bot.send_message(
                             chat_id=id, text=text, parse_mode='HTML')
                         console.print(
                             f'[+] telegramBot 发送成功 {id}', style='bold green')
