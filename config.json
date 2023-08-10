@@ -5,8 +5,12 @@
         "bot": false
     },
     "rss": {
-        "wechatRSS": {
+        "CustomRSS": {
             "enabled": true,
+            "filename": "CustomRSS.opml"
+        },
+        "wechatRSS": {
+            "enabled": false,
             "url": "https://raw.githubusercontent.com/ttttmr/Wechat2RSS/master/static/opml/sec.opml",
             "filename": "wechatRSS.opml"
         },
@@ -16,7 +20,7 @@
             "filename": "chinese-independent-blogs.opml"
         },
         "CyberSecurityRSS": {
-            "enabled": true,
+            "enabled": false,
             "url": "https://raw.githubusercontent.com/zer0yu/CyberSecurityRSS/master/CyberSecurityRSS.opml",
             "filename": "CyberSecurityRSS.opml"
         },
@@ -26,7 +30,7 @@
             "filename": "CyberSecurityRSS-tiny.opml"
         },
         "Chinese-Security-RSS": {
-            "enabled": true,
+            "enabled": false,
             "url": "https://raw.githubusercontent.com/zhengjim/Chinese-Security-RSS/master/Chinese-Security-RSS.opml",
             "filename": "Chinese-Security-RSS.opml"
         }
@@ -105,7 +109,10 @@
             "疫苗",
             "核酸",
             "月薪",
-            "年薪"
+            "年薪",
+            "加售",
+            "开售",
+            "奖励"
         ]
     }
 }
