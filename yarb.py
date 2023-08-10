@@ -8,7 +8,9 @@ import pyfiglet
 import argparse
 import datetime
 import listparser
+import xmltodict
 import feedparser
+import traceback
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -21,7 +23,7 @@ requests.packages.urllib3.disable_warnings()
 today = datetime.datetime.now().strftime("%Y-%m-%d")
 
 
-def update_today(data: list = []):
+def update_today(data: list):
     """更新today"""
     root_path = Path(__file__).absolute().parent
     data_path = root_path.joinpath('temp_data.json')
@@ -36,11 +38,10 @@ def update_today(data: list = []):
     archive_path.parent.mkdir(parents=True, exist_ok=True)
     with open(today_path, 'w+') as f1, open(archive_path, 'w+') as f2:
         content = f'# 每日安全资讯（{today}）\n\n'
-        for item in data:
-            (feed, value), = item.items()
-            content += f'- {feed}\n'
-            for title, url in value.items():
-                content += f'  - [{title}]({url})\n'
+        for feed in data:
+            content += f'- {feed["title"]}\n'
+            for article in feed["articles"]:
+                content += f'  - [{article["title"]}]({article["link"]})\n'
         f1.write(content)
         f2.write(content)
 
@@ -72,7 +73,7 @@ def update_rss(rss: dict, proxy_url=''):
     return result
 
 
-def parseThread(conf: dict, url: str, proxy_url=''):
+def parseThread(conf: dict, feed: dict, proxy_url=''):
     """获取文章线程"""
     def filter(title: str):
         """过滤文章"""
@@ -88,27 +89,41 @@ def parseThread(conf: dict, url: str, proxy_url=''):
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
         'Accept-Language': 'zh-CN,zh;q=0.9',
     }
-
     title = ''
-    result = {}
+    articles = []
     try:
-        r = requests.get(url, timeout=10, headers=headers,
+        r = requests.get(feed['url'], timeout=10, headers=headers,
                          verify=False, proxies=proxy)
         r = feedparser.parse(r.content)
-        title = r.feed.title
+        title = r.feed['title']
         for entry in r.entries:
             d = entry.get('published_parsed') or entry.get('updated_parsed')
             yesterday = datetime.date.today() + datetime.timedelta(-1)
             pubday = datetime.date(d[0], d[1], d[2])
             if pubday == yesterday and filter(entry.title):
-                item = {entry.title: entry.link}
-                result.update(item)
+                item = {
+                    "title": entry.title,
+                    "link": entry.link,
+                    "title_zh": ""
+                }
+                if not is_contain_chinese(entry.title):
+                    trans_text, ok = google_translate(item["title"])
+                    if ok:
+                        item["title_zh"] = trans_text
+                articles.append(item)
         console.print(
-            f'[+] {title}\t{url}\t{len(result.values())}/{len(r.entries)}', style='bold green')
+            f'[+] {title}\t{feed["url"]}\t{len(articles)}/{len(r.entries)}', style='bold green')
     except Exception as e:
-        console.print(f'[-] failed: {url}', style='bold red')
+        console.print(f'[-] failed: {feed["url"]}', style='bold red')
+        # traceback.print_exc()
         print(e)
-    return title, result
+    result = {
+        "category": feed['category'],
+        "order": feed['order'],
+        "title": title,
+        "articles": articles
+    }
+    return result
 
 
 def init_bot(conf: dict, proxy_url=''):
@@ -137,37 +152,61 @@ def init_bot(conf: dict, proxy_url=''):
     return bots
 
 
-def init_rss(conf: dict, update: bool = False, proxy_url=''):
+def get_rss(conf: dict, update: bool = False, proxy_url=''):
     """初始化订阅源"""
     rss_list = []
     enabled = [{k: v} for k, v in conf.items() if v['enabled']]
     for rss in enabled:
         if update:
-            if rss := update_rss(rss, proxy_url):
-                rss_list.append(rss)
-        else:
-            (key, value), = rss.items()
-            rss_list.append(
-                {key: root_path.joinpath(f'rss/{value["filename"]}')})
+            new_rss = update_rss(rss, proxy_url)
+            if new_rss:
+                rss_list.append(new_rss)
+                continue
+        (key, value), = rss.items()
+        rss_list.append(
+            {key: root_path.joinpath(f'rss/{value["filename"]}')})
 
     # 合并相同链接
-    feeds = []
+    link_list = []
+    exist_feeds = set()
     for rss in rss_list:
-        (_, value), = rss.items()
-        try:
-            rss = listparser.parse(open(value).read())
-            for feed in rss.feeds:
-                url = feed.url.strip().rstrip('/')
-                short_url = url.split('://')[-1].split('www.')[-1]
-                check = [feed for feed in feeds if short_url in feed]
-                if not check:
-                    feeds.append(url)
-        except Exception as e:
-            console.print(f'[-] 解析失败：{value}', style='bold red')
-            print(e)
+        (_, filepath), = rss.items()
 
-    console.print(f'[+] {len(feeds)} feeds', style='bold yellow')
-    return feeds
+        with open(filepath, 'r') as f:
+            rss_xml = f.read()
+        try:
+            listparser.parse(rss_xml)
+            rss_dict = xmltodict.parse(rss_xml)
+        except Exception as e:
+            console.print(f'[-] 解析失败：{filepath}', style='bold red')
+            print(e)
+            continue
+        outline = rss_dict.get("opml", {}).get("body", {}).get("outline")
+        if not outline:
+            continue
+        if isinstance(outline, dict):
+            outline = [outline]
+        for item in outline:
+            order = int(item.get("@order"))
+            category = item.get("@category", "")
+            feeds = item.get("outline")
+            if not feeds:
+                continue
+            for feed in feeds:
+                url = feed.get("@xmlUrl")
+                if not url:
+                    continue
+                short_url = url.split('://')[-1].split('www.')[-1]
+                if short_url not in exist_feeds:
+                    link_list.append({
+                        "url": url,
+                        "category": category,
+                        "order": order
+                    })
+                    exist_feeds.add(short_url)
+
+    console.print(f'[+] {len(link_list)} feeds', style='bold yellow')
+    return link_list
 
 
 def cleanup():
@@ -189,7 +228,7 @@ def job(args):
         conf = json.load(f)
 
     proxy_rss = conf['proxy']['url'] if conf['proxy']['rss'] else ''
-    feeds = init_rss(conf['rss'], args.update, proxy_rss)
+    feeds = get_rss(conf['rss'], args.update, proxy_rss)
 
     results = []
     if args.test:
@@ -202,12 +241,13 @@ def job(args):
         tasks = []
         with ThreadPoolExecutor(100) as executor:
             tasks.extend(executor.submit(
-                parseThread, conf['keywords'], url, proxy_rss) for url in feeds)
+                parseThread, conf['keywords'], feed, proxy_rss) for feed in feeds)
             for task in as_completed(tasks):
-                title, result = task.result()
-                if result:
-                    numb += len(result.values())
-                    results.append({title: result})
+                result = task.result()
+                if not result.get('articles'):
+                    continue
+                numb += len(result.get('articles'))
+                results.append(result)
         console.print(
             f'[+] {len(results)} feeds, {numb} articles', style='bold yellow')
 
