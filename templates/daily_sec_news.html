@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>每日安全资讯（{{ today }}）</title>
+</head>
+<body>
+    <h1>每日安全资讯（{{ today }}）</h1>
+    <hr />
+    {% for category in categories %}
+        <br>
+        <h2>【{{ category.category}}】</h2>
+        {% for account in category.accounts %}
+            <h3>{{ account.title }}</h3>
+                <ul>
+                {% for article in account.articles %}
+                    {% if article.title_zh != "" %}
+                    <li><a style="font-size: 16px" href="{{ article.link }}">{{ article.title }}</a></li>
+                    <li><a style="font-size: 16px" href="{{ article.link }}">{{ article.title_zh }}</a></li>
+                    {% else %}
+                    <li><a style="font-size: 16px" href="{{ article.link }}">{{ article.title }}</a></li>
+                    {% endif %}
+                {% endfor %}
+                </ul>
+        {% endfor %}
+    {% endfor %}
+</body>
+</html>

@@ -4,8 +4,8 @@ feedparser
 pyfiglet
 schedule
 pyyaml
-python-telegram-bot
 PySocks
 pyrate-limiter
 poetry
+jinja2
 git+https://github.com/kurtmckee/listparser
