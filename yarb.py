@@ -317,4 +317,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    if not baidu_translator.app_id or baidu_translator.app_secret:
+        print("百度翻译配置为空")
+    else:
+        main()

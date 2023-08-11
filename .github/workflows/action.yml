@@ -29,6 +29,8 @@ jobs:
           TELEGRAM_KEY: ${{ secrets.TELEGRAM_KEY }}
           MAIL_KEY: ${{ secrets.MAIL_KEY }}
           MAIL_RECEIVER: ${{ secrets.MAIL_RECEIVER }}
+          BAIDU_APP_ID: ${{ secrets.BAIDU_APP_ID }}
+          BAIDU_APP_SECRET: ${{ secrets.BAIDU_APP_SECRET }}
         run: python3 yarb.py
 
       - name: Commit
