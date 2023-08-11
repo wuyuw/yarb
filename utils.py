@@ -5,6 +5,11 @@ import jinja2
 import requests
 import json
 import re
+import time
+import threading
+import random
+from hashlib import md5
+
 
 console = Console()
 progress = Progress()
@@ -54,26 +59,102 @@ def is_contain_chinese(word):
     return True if match else False
 
 
-def google_translate(text, target='zh-CN', proxies=None):
-    """
-    google翻译
-    :param text: 字符串
-    :params target: 目标语言
-    :params proxies: 代理
-    :return: (result, bool)
-    """
-    base_url = f'http://translate.google.com/translate_a/single'
-    params = {
-        'client': 'at',
-        'sl': 'en',
-        'tl': target,
-        'dt': 't',
-        'q': text
-    }
-    res = requests.get(base_url, params=params, proxies=proxies)
-    if not res.ok:
-        return text, False
-    try:
-        return json.loads(res.text)[0][0][0], True
-    except:
-        return text, False
+class GoogleTranslator(object):
+    """谷歌翻译"""
+
+    def __init__(self, base_url='http://translate.google.com/translate_a/single', proxy=None) -> None:
+        self.base_url = base_url
+        self.proxy = {'http': proxy, 'https': proxy} if proxy else None
+        self._lock = threading.Lock()
+
+    def translate(self, text, target='zh-CN'):
+        params = {
+            'client': 'at',
+            'sl': 'en',
+            'tl': target,
+            'dt': 't',
+            'q': text
+        }
+        error = ""
+
+        for _ in range(5):
+            with self._lock:
+                res = requests.get(self.base_url, params=params,
+                                   proxies=self.proxy)
+            error = res.reason
+            if res.status_code == 429:
+                time.sleep(random.random())
+                continue
+            if not res.ok:
+                return res.reason, False
+            json_data = res.json()
+            try:
+                return json_data[0][0][0], True
+            except Exception as e:
+                return str(e), False
+        return error, False
+
+
+class BaiduTranslator(object):
+    """百度翻译"""
+
+    BASE_URL = 'http://api.fanyi.baidu.com/api/trans/vip/translate'
+
+    def __init__(self, app_id, app_secret):
+        self.app_id = app_id
+        self.app_secret = app_secret
+
+    @staticmethod
+    def is_chinese(word):
+        """
+        检查整个字符串是否包含中文
+        :param word: 需要检查的字符串
+        :return: bool
+        """
+        for ch in word:
+            if u'\u4e00' <= ch <= u'\u9fff':
+                return True
+        return False
+
+    @staticmethod
+    def gen_salt():
+        return str(int(time.time()))[-5:] + str(random.randint(10000, 99999))
+
+    def get_sign(self, q, salt):
+        """
+        生成签名
+        :param q: 查询字符串
+        :param salt: 随机码
+        :return: sign
+        """
+        s = self.app_id + q + salt + self.app_secret
+        m = md5()
+        m.update(s.encode())
+        return m.hexdigest()
+
+    def fanyi(self, text, retry=10):
+        salt = self.gen_salt()
+        sign = self.get_sign(q=text, salt=salt)
+        params = {
+            'q': text,
+            'from': 'en',
+            'to': 'zh',
+            'appid': self.app_id,
+            'salt': salt,
+            'sign': sign
+        }
+        err_msg = ""
+        for _ in range(retry):
+            resp = requests.get(url=self.BASE_URL, params=params)
+            err_msg = resp.text
+            if not resp.ok:
+                return err_msg, False
+            json_data = resp.json()
+            if json_data.get('error_code') == '54003':
+                time.sleep(random.random())
+                continue
+            trans_result = json_data.get('trans_result')
+            if not trans_result:
+                return err_msg, False
+            return trans_result[0].get('dst'), True
+        return err_msg, False

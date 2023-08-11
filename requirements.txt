@@ -8,4 +8,5 @@ PySocks
 pyrate-limiter
 poetry
 jinja2
+xmltodict
 git+https://github.com/kurtmckee/listparser

@@ -15,7 +15,7 @@
                 <ul>
                 {% for article in account.articles %}
                     {% if article.title_zh != "" %}
-                    <li><a style="font-size: 16px" href="{{ article.link }}">{{ article.title }}</a></li>
+                    <li><a style="font-size: 16px; color: #333;" href="{{ article.link }}">{{ article.title }}</a></li>
                     <li><a style="font-size: 16px" href="{{ article.link }}">{{ article.title_zh }}</a></li>
                     {% else %}
                     <li><a style="font-size: 16px" href="{{ article.link }}">{{ article.title }}</a></li>
