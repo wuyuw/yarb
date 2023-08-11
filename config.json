@@ -83,7 +83,7 @@
             "secrets_receiver": "MAIL_RECEIVER",
             "address": "dysecurity@163.com",
             "server": "smtp.163.com",
-            "from": "安全资讯 <dysecurity@163.com>",
+            "from": "dysecurity@163.com",
             "receiver": "a@163.com,b@163.com",
             "key": "xxxxxxxxxx"
         }

@@ -151,7 +151,7 @@ class BaiduTranslator(object):
                 return err_msg, False
             json_data = resp.json()
             if json_data.get('error_code') == '54003':
-                time.sleep(random.random())
+                time.sleep(random.random()*5)
                 continue
             trans_result = json_data.get('trans_result')
             if not trans_result:
