@@ -103,6 +103,7 @@ class BaiduTranslator(object):
     def __init__(self, app_id, app_secret):
         self.app_id = app_id
         self.app_secret = app_secret
+        self.limited = False
 
     @staticmethod
     def is_chinese(word):
@@ -133,6 +134,8 @@ class BaiduTranslator(object):
         return m.hexdigest()
 
     def fanyi(self, text, retry=10):
+        if self.limited:
+            return "翻译额度不足", False
         salt = self.gen_salt()
         sign = self.get_sign(q=text, salt=salt)
         params = {
@@ -150,7 +153,11 @@ class BaiduTranslator(object):
             if not resp.ok:
                 return err_msg, False
             json_data = resp.json()
-            if json_data.get('error_code') == '54003':
+            error_code = json_data.get('error_code')
+            if error_code == '54004':
+                self.limited = True
+                return err_msg, False
+            if error_code == '54003':
                 time.sleep(random.random()*5)
                 continue
             trans_result = json_data.get('trans_result')
@@ -158,3 +165,9 @@ class BaiduTranslator(object):
                 return err_msg, False
             return trans_result[0].get('dst'), True
         return err_msg, False
+
+
+if __name__ == '__main__':
+    gt = GoogleTranslator(proxy='http://127.0.0.1:51837')
+    res, ok = gt.translate("how are you?")
+    print(res, ok)

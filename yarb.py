@@ -135,14 +135,17 @@ def parseThread(conf: dict, feed: dict, proxy_url=''):
                     "link": entry.link,
                     "title_zh": ""
                 }
-                if not is_contain_chinese(entry.title):
-                    trans_text, ok = baidu_translator.fanyi(
-                        item["title"], retry=30)
-                    if not ok:
-                        console.print(
-                            f'[-] 翻译失败: {trans_text}', style='bold red')
-                    else:
-                        item["title_zh"] = trans_text
+                if is_contain_chinese(entry.title):
+                    continue
+                if baidu_translator.limited:
+                    continue
+                trans_text, ok = baidu_translator.fanyi(
+                    item["title"], retry=30)
+                if not ok:
+                    console.print(
+                        f'[-] 翻译失败: {trans_text}', style='bold red')
+                else:
+                    item["title_zh"] = trans_text
                 articles.append(item)
         console.print(
             f'[+] {title}\t{feed["url"]}\t{len(articles)}/{len(r.entries)}', style='bold green')
