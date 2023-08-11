@@ -35,7 +35,6 @@ def get_baidu_translator(conf):
         conf['secret_app_id']) or conf['app_id']
     baidu_app_secret = os.getenv(
         conf['secret_app_secret']) or conf['app_secret']
-    print(baidu_app_id, baidu_app_secret)
     return BaiduTranslator(app_id=baidu_app_id, app_secret=baidu_app_secret)
 
 
@@ -318,7 +317,6 @@ def main():
 
 
 if __name__ == '__main__':
-
     if not baidu_translator.app_id or baidu_translator.app_secret:
         print("百度翻译配置为空")
     else:
