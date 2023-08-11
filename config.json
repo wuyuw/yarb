@@ -1,8 +1,16 @@
 {
     "proxy": {
-        "url": "http://127.0.0.1:7890",
+        "url": "http://127.0.0.1:51837",
         "rss": false,
         "bot": false
+    },
+    "translate": {
+        "baidu": {
+            "secret_app_id": "BAIDU_APP_ID",
+            "secret_app_secret": "BAIDU_APP_SECRET",
+            "app_id": "",
+            "app_secret": ""
+        }
     },
     "rss": {
         "CustomRSS": {
@@ -112,6 +120,7 @@
             "年薪",
             "加售",
             "开售",
+            "销售",
             "奖励"
         ]
     }

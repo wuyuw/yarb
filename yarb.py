@@ -20,7 +20,25 @@ from utils import *
 import requests
 requests.packages.urllib3.disable_warnings()
 
+
+root_path = Path(__file__).absolute().parent
+config_path = root_path.joinpath('config.json')
+with open(config_path) as f:
+    conf = json.load(f)
+proxy_rss = conf['proxy']['url'] if conf['proxy']['rss'] else ''
+
 today = datetime.datetime.now().strftime("%Y-%m-%d")
+
+
+def get_baidu_translator(conf):
+    baidu_app_id = os.getenv(
+        conf['secret_app_id']) or conf['app_id']
+    baidu_app_secret = os.getenv(
+        conf['secret_app_secret']) or conf['app_secret']
+    return BaiduTranslator(app_id=baidu_app_id, app_secret=baidu_app_secret)
+
+
+baidu_translator = get_baidu_translator(conf['translate']['baidu'])
 
 
 def update_today(data: list):
@@ -91,14 +109,25 @@ def parseThread(conf: dict, feed: dict, proxy_url=''):
     }
     title = ''
     articles = []
+    result = {
+        "category": feed['category'],
+        "order": feed['order'],
+        "title": title,
+        "articles": articles
+    }
+    yesterday = datetime.date.today() + datetime.timedelta(-1)
     try:
         r = requests.get(feed['url'], timeout=10, headers=headers,
                          verify=False, proxies=proxy)
         r = feedparser.parse(r.content)
-        title = r.feed['title']
+        title = r.feed.get('title', "")
+        if not r.entries:
+            return result
         for entry in r.entries:
             d = entry.get('published_parsed') or entry.get('updated_parsed')
-            yesterday = datetime.date.today() + datetime.timedelta(-1)
+            if not d:
+                console.print(f'[-] failed: 文章日期获取失败', style='bold red')
+                continue
             pubday = datetime.date(d[0], d[1], d[2])
             if pubday == yesterday and filter(entry.title):
                 item = {
@@ -107,22 +136,27 @@ def parseThread(conf: dict, feed: dict, proxy_url=''):
                     "title_zh": ""
                 }
                 if not is_contain_chinese(entry.title):
-                    trans_text, ok = google_translate(item["title"])
-                    if ok:
+                    trans_text, ok = baidu_translator.fanyi(
+                        item["title"], retry=30)
+                    if not ok:
+                        console.print(
+                            f'[-] 翻译失败: {trans_text}', style='bold red')
+                    else:
                         item["title_zh"] = trans_text
                 articles.append(item)
         console.print(
             f'[+] {title}\t{feed["url"]}\t{len(articles)}/{len(r.entries)}', style='bold green')
+    except (requests.exceptions.ConnectionError,
+            requests.exceptions.ConnectTimeout,
+            requests.exceptions.ReadTimeout):
+        console.print(f'[-] failed: {feed["url"]}', style='bold red')
+        return result
     except Exception as e:
         console.print(f'[-] failed: {feed["url"]}', style='bold red')
-        # traceback.print_exc()
-        print(e)
-    result = {
-        "category": feed['category'],
-        "order": feed['order'],
-        "title": title,
-        "articles": articles
-    }
+        traceback.print_exc()
+        # print(e)
+    result['title'] = title
+    result['articles'] = articles
     return result
 
 
@@ -218,16 +252,6 @@ def job(args):
     """定时任务"""
     print(f'{pyfiglet.figlet_format("yarb")}\n{today}')
 
-    global root_path
-    root_path = Path(__file__).absolute().parent
-    if args.config:
-        config_path = Path(args.config).expanduser().absolute()
-    else:
-        config_path = root_path.joinpath('config.json')
-    with open(config_path) as f:
-        conf = json.load(f)
-
-    proxy_rss = conf['proxy']['url'] if conf['proxy']['rss'] else ''
     feeds = get_rss(conf['rss'], args.update, proxy_rss)
 
     results = []
