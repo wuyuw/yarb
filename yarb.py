@@ -93,12 +93,12 @@ def update_rss(rss: dict, proxy_url=''):
 
 def parseThread(conf: dict, feed: dict, proxy_url=''):
     """获取文章线程"""
-    def filter(title: str):
+    def pass_key(title: str):
         """过滤文章"""
         for i in conf['exclude']:
             if i in title:
-                return False
-        return True
+                return True
+        return False
 
     proxy = {'http': proxy_url, 'https': proxy_url} if proxy_url else {
         'http': None, 'https': None}
@@ -129,24 +129,23 @@ def parseThread(conf: dict, feed: dict, proxy_url=''):
                 console.print(f'[-] failed: 文章日期获取失败', style='bold red')
                 continue
             pubday = datetime.date(d[0], d[1], d[2])
-            if pubday == yesterday and filter(entry.title):
-                item = {
-                    "title": entry.title,
-                    "link": entry.link,
-                    "title_zh": ""
-                }
-                if is_contain_chinese(entry.title):
-                    continue
-                if baidu_translator.limited:
-                    continue
-                trans_text, ok = baidu_translator.fanyi(
-                    item["title"], retry=30)
-                if not ok:
-                    console.print(
-                        f'[-] 翻译失败: {trans_text}', style='bold red')
-                else:
-                    item["title_zh"] = trans_text
-                articles.append(item)
+            if pubday != yesterday or pass_key(entry.title):
+                continue
+            item = {
+                "title": entry.title,
+                "link": entry.link,
+                "title_zh": ""
+            }
+            if not is_contain_chinese(entry.title):
+                if not baidu_translator.limited:
+                    trans_text, ok = baidu_translator.fanyi(
+                        item["title"], retry=30)
+                    if ok:
+                        item["title_zh"] = trans_text
+                    else:
+                        console.print(
+                            f'[-] 翻译失败: {trans_text}', style='bold red')
+            articles.append(item)
         console.print(
             f'[+] {title}\t{feed["url"]}\t{len(articles)}/{len(r.entries)}', style='bold green')
     except (requests.exceptions.ConnectionError,
